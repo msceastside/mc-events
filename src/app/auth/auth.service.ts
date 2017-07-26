@@ -8,6 +8,7 @@ declare var auth0: any;
 
 @Injectable()
 export class AuthService {
+  isAdmin: boolean;
 
   // Create Auth0 web auth instance
   auth0 = new auth0.WebAuth({
@@ -31,6 +32,7 @@ export class AuthService {
     const lsProfile = localStorage.getItem('profile');
     if (this.tokenValid) {
       this.userProfile = JSON.parse(lsProfile);
+      this.isAdmin = localStorage.getItem('isAdmin') === 'true';
       this.setLoggedIn(true);
     } else if (!this.tokenValid && lsProfile) {
       this.logout();
@@ -80,9 +82,16 @@ export class AuthService {
     localStorage.setItem('id_token', authResult.idToken);
     localStorage.setItem('expires_at', expiresAt);
     localStorage.setItem('profile', JSON.stringify(profile));
+    localStorage.setItem('isAdmin', this.isAdmin.toString());
     this.userProfile = profile;
     // Update login status in loggedIn$ stream
     this.setLoggedIn(true);
+  }
+
+  private _checkAdmin(profile) {
+    // Check if the user has admin role
+    const roles = profile[AUTH_CONFIG.NAMESPACE] || [];
+    return roles.indexOf('admin') > -1;
   }
 
   logout() {
@@ -91,8 +100,10 @@ export class AuthService {
     localStorage.removeItem('id_token');
     localStorage.removeItem('profile');
     localStorage.removeItem('authRedirect');
+    localStorage.removeItem('isAdmin');
     // Reset local properties, update loggedIn$ stream
     this.userProfile = undefined;
+    this.isAdmin = undefined;
     this.setLoggedIn(false);
     // Return to homepage
     this.router.navigate(['/']);
